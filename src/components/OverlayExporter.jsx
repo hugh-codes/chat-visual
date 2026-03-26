@@ -16,7 +16,7 @@ const CANVAS_HEIGHT = 1080;
  * Typical speed: 10–50× faster than real-time.
  * Output: MP4 with black background — use "Screen" blend mode in your NLE.
  */
-export default function OverlayExporter({ events, minTime, duration, exporting, onProgress, onDone }) {
+export default function OverlayExporter({ events, minTime, duration, exporting, onProgress, onDone, videoFile }) {
   const workerRef = useRef(null);
 
   useEffect(() => {
@@ -57,13 +57,13 @@ export default function OverlayExporter({ events, minTime, duration, exporting, 
     };
 
     // Transfer the OffscreenCanvas to the worker (zero-copy ownership transfer)
-    worker.postMessage({ canvas, events, minTime, duration }, [canvas]);
+    worker.postMessage({ canvas, events, minTime, duration, videoFile: videoFile ?? null }, [canvas]);
 
     return () => {
       worker.terminate();
       workerRef.current = null;
     };
-  }, [exporting, events, minTime, duration, onProgress, onDone]);
+  }, [exporting, events, minTime, duration, onProgress, onDone, videoFile]);
 
   // No DOM canvas needed — the worker owns an OffscreenCanvas
   return null;
@@ -76,5 +76,6 @@ OverlayExporter.propTypes = {
   exporting: PropTypes.bool.isRequired,
   onProgress: PropTypes.func.isRequired, // (0-1 | { error: string }) => void
   onDone: PropTypes.func.isRequired,     // (Blob) => void
+  videoFile: PropTypes.instanceOf(File),    // File | null — present for full composite export
 };
 

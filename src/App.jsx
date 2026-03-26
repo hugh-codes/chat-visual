@@ -17,6 +17,7 @@ export default function App() {
   const [speed, setSpeed] = useState(1);
   const [filename, setFilename] = useState('');
   const [videoSrc, setVideoSrc] = useState(null);    // object URL for the loaded video
+  const [videoFile, setVideoFile] = useState(null);  // File object for composite export
   const [exporting, setExporting] = useState(false); // true while recording overlay MP4
   const [exportProgress, setExportProgress] = useState(null); // null | 0-1 | { error }
   const [exportError, setExportError] = useState(null);
@@ -43,6 +44,7 @@ export default function App() {
     if (!file || !file.type.startsWith('video/')) return;
     setCurrentTime(0);
     setPlaying(false);
+    setVideoFile(file);
     setVideoSrc(URL.createObjectURL(file));
   }, []);
 
@@ -61,12 +63,14 @@ export default function App() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'chatvisual-overlay.mp4';
+    // When a source video was composited, produce a self-contained output file;
+    // otherwise label it as an overlay for use in an NLE.
+    a.download = videoFile ? 'chatvisual-export.mp4' : 'chatvisual-overlay.mp4';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-  }, []);
+  }, [videoFile]);
 
   const handleExportProgress = useCallback((value) => {
     if (value && value.error) {
@@ -206,7 +210,9 @@ export default function App() {
           title={
             exporting
               ? 'Cancel export'
-              : 'Export chat overlay as MP4 (no need to play the video)'
+              : videoFile
+                ? 'Export final MP4 with video, chat overlay, and audio'
+                : 'Export chat overlay as MP4 (no need to play the video)'
           }
         >
           {exporting ? '⏹ Cancel Export' : '⬇ Export MP4'}
@@ -220,6 +226,7 @@ export default function App() {
             setExportProgress(null);
             setExportError(null);
             setVideoSrc(null);
+            setVideoFile(null);
           }}
         >
           Load new file
@@ -274,6 +281,7 @@ export default function App() {
               exporting={exporting}
               onProgress={handleExportProgress}
               onDone={handleExportDone}
+              videoFile={videoFile}
             />
 
             {/* Export progress overlay */}
@@ -289,7 +297,9 @@ export default function App() {
                   Encoding MP4… {Math.round(exportProgress * 100)}%
                 </span>
                 <span className="app__export-progress-hint">
-                  Use &quot;Screen&quot; blend mode in your video editor to composite
+                  {videoFile
+                    ? 'Encoding final video with chat overlay and audio…'
+                    : 'Use \u201cScreen\u201d blend mode in your video editor to composite'}
                 </span>
               </div>
             )}

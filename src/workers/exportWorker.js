@@ -7,8 +7,12 @@
  * messages back.
  *
  * Expected inbound message (only one, to start the job):
- *   { canvas: OffscreenCanvas, events: Array, minTime: number, duration: number }
+ *   { canvas: OffscreenCanvas, events: Array, minTime: number, duration: number,
+ *     videoFile?: File }
  *   The canvas is transferred (zero-copy) via the transferable list.
+ *   videoFile is optional — when present, the worker composites the source video
+ *   behind the overlay and transmuxes the audio, producing a fully self-contained
+ *   output MP4. When absent, the output is overlay-only (black background).
  *
  * Outbound messages:
  *   { type: 'progress', value: number }   — 0–1
@@ -21,6 +25,12 @@ import {
   Mp4OutputFormat,
   BufferTarget,
   CanvasSource,
+  Input,
+  BlobSource,
+  ALL_FORMATS,
+  EncodedAudioPacketSource,
+  EncodedPacketSink,
+  VideoSampleSink,
 } from 'mediabunny';
 import { REACTION_LIFETIME, reactionLeft } from '../utils/overlayConstants';
 
@@ -29,14 +39,13 @@ const CANVAS_HEIGHT = 1080;
 const EXPORT_FPS = 30;
 const FRAME_DURATION = 1 / EXPORT_FPS; // seconds
 
-// ── Draw one frame to the OffscreenCanvas ────────────────────────────────────
-function drawFrame(ctx, events, minTime, offsetMs) {
+// ── Draw the chat overlay onto whatever is already on the canvas ──────────────
+// Does NOT fill the background — call this after painting the video frame (or a
+// black fill) so the overlay sits on top.
+function drawOverlay(ctx, events, minTime, offsetMs) {
   const W = CANVAS_WIDTH;
   const H = CANVAS_HEIGHT;
   const nowMs = offsetMs + minTime;
-
-  ctx.fillStyle = '#000000';
-  ctx.fillRect(0, 0, W, H);
 
   // ── Chat messages ──────────────────────────────────────────────────────────
   const pad = 24;
@@ -103,9 +112,61 @@ function drawFrame(ctx, events, minTime, offsetMs) {
   });
 }
 
+// ── Draw black background + overlay (overlay-only export path) ────────────────
+function drawFrame(ctx, events, minTime, offsetMs) {
+  ctx.fillStyle = '#000000';
+  ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+  drawOverlay(ctx, events, minTime, offsetMs);
+}
+
+// ── Audio transmux: copy encoded audio packets from source → output ───────────
+// No decode/re-encode — just bytes. Nearly instantaneous.
+//
+// @param {InputAudioTrack} audioTrack - The audio track from the source Input.
+// @param {EncodedAudioPacketSource} audioSource - The output audio source to feed.
+// @param {number} durationS - The overlay duration in seconds; packets beyond this
+//   are discarded to keep audio and video in sync.
+async function transmuxAudio(audioTrack, audioSource, durationS) {
+  const decoderConfig = await audioTrack.getDecoderConfig();
+  const sink = new EncodedPacketSink(audioTrack);
+  let isFirst = true;
+
+  for await (const packet of sink.packets()) {
+    // Do not include audio beyond the overlay duration (keeps A/V in sync)
+    if (packet.timestamp >= durationS) break;
+
+    const meta = isFirst && decoderConfig ? { decoderConfig } : undefined;
+    await audioSource.add(packet, meta);
+    isFirst = false;
+  }
+
+  audioSource.close();
+}
+
 // ── Main encode loop ──────────────────────────────────────────────────────────
 self.onmessage = async ({ data }) => {
-  const { canvas, events, minTime, duration } = data;
+  const { canvas, events, minTime, duration, videoFile } = data;
+
+  // Open the source video file (if provided) to extract the video + audio tracks.
+  let input = null;
+  let srcVideoTrack = null;
+  let srcAudioTrack = null;
+
+  if (videoFile) {
+    try {
+      input = new Input({ source: new BlobSource(videoFile), formats: ALL_FORMATS });
+      [srcVideoTrack, srcAudioTrack] = await Promise.all([
+        input.getPrimaryVideoTrack(),
+        input.getPrimaryAudioTrack(),
+      ]);
+    } catch {
+      // Could not open or parse the file — fall back to overlay-only export.
+      input?.dispose();
+      input = null;
+      srcVideoTrack = null;
+      srcAudioTrack = null;
+    }
+  }
 
   try {
     const ctx = canvas.getContext('2d');
@@ -123,34 +184,88 @@ self.onmessage = async ({ data }) => {
       bitrate: 4_000_000,
     });
     output.addVideoTrack(videoSource, { frameRate: EXPORT_FPS });
+
+    // Add an audio track when we have a source audio stream to transmux.
+    let audioSource = null;
+    if (srcAudioTrack?.codec) {
+      audioSource = new EncodedAudioPacketSource(srcAudioTrack.codec);
+      output.addAudioTrack(audioSource);
+    }
+
     await output.start();
 
-    for (let i = 0; i < totalFrames; i++) {
-      const offsetMs = (i / EXPORT_FPS) * 1000;
-      drawFrame(ctx, events, minTime, offsetMs);
+    // Kick off audio transmux concurrently — the output muxer interleaves the
+    // audio and video packets automatically.
+    const audioPromise = audioSource
+      ? transmuxAudio(srcAudioTrack, audioSource, duration).catch(() => {
+          // Audio transmux failure is non-fatal; output will simply have no audio.
+        })
+      : Promise.resolve();
 
-      // Awaiting add() automatically respects encoder + muxer backpressure
-      // without any setTimeout polling — this is the key speedup vs the old
-      // manual VideoEncoder loop.
-      await videoSource.add(i * FRAME_DURATION, FRAME_DURATION, {
-        // A key frame every 150 frames (5 s at 30 fps) balances seekability
-        // against file size — shorter streams need a key frame near the start.
-        keyFrame: i % 150 === 0,
-      });
+    if (srcVideoTrack) {
+      // ── Composite mode: source video behind, overlay on top ───────────────
+      // samplesAtTimestamps requests one decoded frame per output timestamp.
+      // It uses a pipelined decoder and never decodes the same source frame
+      // twice, so it is as fast as the hardware decoder allows.
+      const frameSink = new VideoSampleSink(srcVideoTrack);
+      const timestamps = Array.from({ length: totalFrames }, (_, i) => i * FRAME_DURATION);
 
-      // Post progress once per second of encoded content
-      if (i % EXPORT_FPS === 0) {
-        self.postMessage({ type: 'progress', value: i / totalFrames });
+      let i = 0;
+      for await (const sample of frameSink.samplesAtTimestamps(timestamps)) {
+        const offsetMs = i * FRAME_DURATION * 1000;
+
+        if (sample) {
+          // Scale source frame to fill the canvas, then overlay chat on top.
+          sample.draw(ctx, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+          sample.close();
+        } else {
+          // No source frame available (e.g. past end of video) — use black.
+          ctx.fillStyle = '#000000';
+          ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+        }
+        drawOverlay(ctx, events, minTime, offsetMs);
+
+        // Awaiting add() automatically respects encoder + muxer backpressure
+        // without any setTimeout polling.
+        await videoSource.add(i * FRAME_DURATION, FRAME_DURATION, {
+          // A key frame every 150 frames (5 s at 30 fps) balances seekability
+          // against file size — shorter streams need a key frame near the start.
+          keyFrame: i % 150 === 0,
+        });
+
+        // Post progress once per second of encoded content
+        if (i % EXPORT_FPS === 0) {
+          self.postMessage({ type: 'progress', value: i / totalFrames });
+        }
+
+        i++;
+      }
+    } else {
+      // ── Overlay-only mode (no source video) ───────────────────────────────
+      for (let i = 0; i < totalFrames; i++) {
+        const offsetMs = (i / EXPORT_FPS) * 1000;
+        drawFrame(ctx, events, minTime, offsetMs);
+
+        await videoSource.add(i * FRAME_DURATION, FRAME_DURATION, {
+          keyFrame: i % 150 === 0,
+        });
+
+        if (i % EXPORT_FPS === 0) {
+          self.postMessage({ type: 'progress', value: i / totalFrames });
+        }
       }
     }
 
     videoSource.close();
+    await audioPromise;
     await output.finalize();
+    input?.dispose();
 
     // Transfer the ArrayBuffer zero-copy back to the main thread
     const buffer = output.target.buffer;
     self.postMessage({ type: 'done', buffer }, [buffer]);
   } catch (err) {
+    input?.dispose();
     self.postMessage({ type: 'error', error: String(err) });
   }
 };
