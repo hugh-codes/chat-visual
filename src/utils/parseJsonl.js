@@ -26,7 +26,14 @@ export function parseJsonl(text) {
 
         if (body.type === 2) {
           const ts = body.timestamp ?? body.ntpForLiveFrame ?? null;
-          if (ts !== null && ts < minTimestamp) minTimestamp = ts;
+
+          // Skip reactions with no usable timestamp — storing null would make
+          // the JS comparison `null <= now` evaluate to true (null coerces to 0)
+          // causing every un-timed reaction to appear the moment the overlay
+          // mounts.
+          if (ts === null) continue;
+
+          if (ts < minTimestamp) minTimestamp = ts;
 
           reactions.push({
             id: body.uuid ?? `reaction-${reactions.length}`,

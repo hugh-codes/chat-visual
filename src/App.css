@@ -204,3 +204,75 @@
   50%       { opacity: 0.55; }
 }
 
+/* Export progress overlay — centred over the stream area */
+.app__export-progress {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: rgba(0, 0, 0, 0.72);
+  pointer-events: none;
+  z-index: 10;
+}
+
+.app__export-progress-bar {
+  width: 320px;
+  height: 8px;
+  background: #2a2a2e;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.app__export-progress-fill {
+  height: 100%;
+  background: #9147ff;
+  border-radius: 4px;
+  transition: width 0.25s ease;
+}
+
+.app__export-progress-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #efeff1;
+}
+
+.app__export-progress-hint {
+  font-size: 11px;
+  color: #5c5c62;
+  text-align: center;
+  max-width: 320px;
+}
+
+/* Export error banner */
+.app__export-error {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #2a1010;
+  border: 1px solid #ff4040;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-size: 13px;
+  color: #ff8080;
+  max-width: 520px;
+  z-index: 10;
+}
+
+.app__export-error-dismiss {
+  background: transparent;
+  border: none;
+  color: #ff4040;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0;
+  flex-shrink: 0;
+}
+

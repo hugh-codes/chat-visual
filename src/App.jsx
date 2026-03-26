@@ -17,7 +17,9 @@ export default function App() {
   const [speed, setSpeed] = useState(1);
   const [filename, setFilename] = useState('');
   const [videoSrc, setVideoSrc] = useState(null);    // object URL for the loaded video
-  const [exporting, setExporting] = useState(false); // true while recording overlay WebM
+  const [exporting, setExporting] = useState(false); // true while recording overlay MP4
+  const [exportProgress, setExportProgress] = useState(null); // null | 0-1 | { error }
+  const [exportError, setExportError] = useState(null);
   const intervalRef = useRef(null);
   const videoRef = useRef(null);
   const videoInputRef = useRef(null);
@@ -52,31 +54,38 @@ export default function App() {
     };
   }, [videoSrc]);
 
-  // Download the overlay blob when recording stops
+  // Download the overlay blob when encoding finishes
   const handleExportDone = useCallback((blob) => {
     setExporting(false);
-    setPlaying(false);
-    const ext = blob.type.includes('mp4') ? 'mp4' : 'webm';
+    setExportProgress(null);
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `chatvisual-overlay.${ext}`;
+    a.download = 'chatvisual-overlay.mp4';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   }, []);
 
+  const handleExportProgress = useCallback((value) => {
+    if (value && value.error) {
+      setExportError(value.error);
+      setExporting(false);
+      setExportProgress(null);
+    } else {
+      setExportProgress(value);
+    }
+  }, []);
+
   const handleExportToggle = () => {
     if (exporting) {
       setExporting(false);
-      setPlaying(false);
+      setExportProgress(null);
     } else {
-      // Rewind to start, then record + play
-      setCurrentTime(0);
-      if (videoRef.current) videoRef.current.currentTime = 0;
+      setExportError(null);
+      setExportProgress(0);
       setExporting(true);
-      setPlaying(true);
     }
   };
 
@@ -91,7 +100,6 @@ export default function App() {
         const next = prev + (TICK_MS / 1000) * speed;
         if (next >= duration) {
           setPlaying(false);
-          setExporting(false);
           return duration;
         }
         return next;
@@ -122,7 +130,6 @@ export default function App() {
   // Stable callback for natural playback end (video ended or ticker reached duration)
   const handlePlaybackEnd = useCallback(() => {
     setPlaying(false);
-    setExporting(false);
   }, []);
 
   const handleSeek = (val) => {
@@ -198,11 +205,11 @@ export default function App() {
           onClick={handleExportToggle}
           title={
             exporting
-              ? 'Stop recording and download transparent WebM'
-              : 'Export overlay as transparent WebM for compositing in a video editor'
+              ? 'Cancel export'
+              : 'Export chat overlay as MP4 (no need to play the video)'
           }
         >
-          {exporting ? '⏹ Stop Export' : '⬇ Export Overlay'}
+          {exporting ? '⏹ Cancel Export' : '⬇ Export MP4'}
         </button>
         <button
           className="app__reset-btn"
@@ -210,6 +217,8 @@ export default function App() {
             setEvents(null);
             setPlaying(false);
             setExporting(false);
+            setExportProgress(null);
+            setExportError(null);
             setVideoSrc(null);
           }}
         >
@@ -251,23 +260,52 @@ export default function App() {
               </div>
             )}
 
-            {/* Transparent overlay: floating reactions + chat messages.
-                Hidden during export so the canvas preview takes over. */}
-            {!exporting && (
-              <ChatOverlay
-                events={events}
-                currentMs={currentMs}
-                minTime={minTime}
-              />
-            )}
-            {/* Canvas recorder — transparent WebM export */}
-            <OverlayExporter
+            {/* Transparent overlay: floating reactions + chat messages */}
+            <ChatOverlay
               events={events}
               currentMs={currentMs}
               minTime={minTime}
+            />
+            {/* Canvas encoder — off-screen; self-drives time, no playback needed */}
+            <OverlayExporter
+              events={events}
+              minTime={minTime}
+              duration={duration}
               exporting={exporting}
+              onProgress={handleExportProgress}
               onDone={handleExportDone}
             />
+
+            {/* Export progress overlay */}
+            {exporting && exportProgress !== null && (
+              <div className="app__export-progress">
+                <div className="app__export-progress-bar">
+                  <div
+                    className="app__export-progress-fill"
+                    style={{ width: `${Math.round(exportProgress * 100)}%` }}
+                  />
+                </div>
+                <span className="app__export-progress-label">
+                  Encoding MP4… {Math.round(exportProgress * 100)}%
+                </span>
+                <span className="app__export-progress-hint">
+                  Use &quot;Screen&quot; blend mode in your video editor to composite
+                </span>
+              </div>
+            )}
+
+            {/* Export error banner */}
+            {exportError && (
+              <div className="app__export-error">
+                ⚠ {exportError}
+                <button
+                  className="app__export-error-dismiss"
+                  onClick={() => setExportError(null)}
+                >
+                  ✕
+                </button>
+              </div>
+            )}
           </div>
 
           <Timeline

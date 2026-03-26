@@ -9,7 +9,7 @@ Upload a `.jsonl` file exported from a Twitter Spaces (or compatible) live strea
 - **Floating emoji reactions** rise up over the video area in real time, timed to the stream
 - **Transparent chat overlay** shows join events and emoji reactions as bottom-left text — no background panel, just text-shadow for readability, so it looks natural on any video
 - **Video player** — drag-and-drop or click to load any video file (MP4, MOV, MKV, etc.); large files up to 8 GB are streamed from disk via `URL.createObjectURL` without loading into RAM
-- **Export Overlay** — records the reactions + chat to a transparent 1920×1080 WebM (VP9 alpha where supported) that you can drop onto your original video track in Premiere, DaVinci Resolve, CapCut, or any NLE
+- **Export MP4** — offline H.264 encode via WebCodecs; renders the full overlay at maximum CPU speed without replaying the video (typically 10–50× faster than real-time, so a 2-hour stream takes minutes, not hours). Output is a 1920×1080 MP4 with a black background — drop it onto your video track in Premiere, DaVinci Resolve, CapCut, etc. and set the blend mode to **Screen** for clean compositing. Requires Chrome 94+ or Edge 94+.
 - **Playback controls** — play/pause, scrubber, and speed selector (0.5×–4×)
 - **Drag-and-drop** file upload, or click to browse; includes a bundled example file
 

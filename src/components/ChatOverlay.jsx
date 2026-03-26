@@ -20,6 +20,7 @@ export default function ChatOverlay({ events, currentMs, minTime }) {
     const newOnes = events.filter(
       (e) =>
         e.type === 'reaction' &&
+        e.timestamp != null &&
         e.timestamp <= now &&
         !seenRef.current.has(e.id)
     );
@@ -57,7 +58,7 @@ export default function ChatOverlay({ events, currentMs, minTime }) {
   }, [currentMs]);
 
   const visible = events
-    .filter((e) => e.timestamp <= currentMs + minTime)
+    .filter((e) => e.timestamp != null && e.timestamp <= currentMs + minTime)
     .slice(-12); // last 12 events
 
   return (
