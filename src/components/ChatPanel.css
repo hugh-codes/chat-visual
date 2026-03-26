@@ -1,11 +1,16 @@
 .chat-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 280px;
   display: flex;
   flex-direction: column;
-  background: #0e0e10;
-  border-left: 1px solid #2a2a2e;
-  height: 100%;
-  width: 320px;
-  flex-shrink: 0;
+  background: rgba(14, 14, 16, 0.80);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-left: 1px solid rgba(42, 42, 46, 0.6);
+  z-index: 10;
   font-family: 'Inter', sans-serif;
 }
 

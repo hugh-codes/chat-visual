@@ -137,4 +137,41 @@
   color: #2a2a2e !important;
 }
 
+/* Video element — fills the stream area */
+.app__video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  background: #000;
+}
+
+/* Clickable placeholder variant */
+.app__stream-placeholder--clickable {
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.app__stream-placeholder--clickable:hover .app__stream-icon,
+.app__stream-placeholder--clickable:hover p {
+  color: #9147ff;
+}
+
+/* "Add / Replace video" button in topbar */
+.app__video-btn {
+  background: transparent;
+  border: 1px solid #3d3d40;
+  color: #adadb8;
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+
+.app__video-btn:hover {
+  border-color: #9147ff;
+  color: #efeff1;
+}
 

@@ -16,7 +16,10 @@ export default function App() {
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
   const [filename, setFilename] = useState('');
+  const [videoSrc, setVideoSrc] = useState(null);    // object URL for the loaded video
   const intervalRef = useRef(null);
+  const videoRef = useRef(null);
+  const videoInputRef = useRef(null);
 
   // Parse JSONL text and initialise playback state
   const handleLoad = useCallback((text, name = '') => {
@@ -31,12 +34,29 @@ export default function App() {
     setFilename(name);
   }, []);
 
-  // Playback ticker
+  // Load a video file using createObjectURL so large files are streamed from
+  // disk rather than read entirely into memory.
+  const handleVideoFile = useCallback((file) => {
+    if (!file || !file.type.startsWith('video/')) return;
+    setCurrentTime(0);
+    setPlaying(false);
+    setVideoSrc(URL.createObjectURL(file));
+  }, []);
+
+  // Revoke the object URL when it changes or the component unmounts to avoid
+  // memory leaks.
   useEffect(() => {
-    if (!playing) {
-      clearInterval(intervalRef.current);
-      return;
-    }
+    return () => {
+      if (videoSrc) URL.revokeObjectURL(videoSrc);
+    };
+  }, [videoSrc]);
+
+  // Playback ticker — only used when no video is loaded (video drives its own
+  // timeupdate events instead).
+  useEffect(() => {
+    clearInterval(intervalRef.current);
+    if (!playing || videoSrc) return;
+
     intervalRef.current = setInterval(() => {
       setCurrentTime((prev) => {
         const next = prev + (TICK_MS / 1000) * speed;
@@ -49,17 +69,46 @@ export default function App() {
     }, TICK_MS);
 
     return () => clearInterval(intervalRef.current);
-  }, [playing, speed, duration]);
+  }, [playing, speed, duration, videoSrc]);
+
+  // Sync play/pause state with the video element.
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (playing) {
+      video.play().catch(() => {});
+    } else {
+      video.pause();
+    }
+  }, [playing]);
+
+  // Sync playback speed with the video element.
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.playbackRate = speed;
+    }
+  }, [speed]);
 
   const handleSeek = (val) => {
     setCurrentTime(val);
+    if (videoRef.current) {
+      videoRef.current.currentTime = val;
+    }
   };
 
   const handleTogglePlay = () => {
     if (currentTime >= duration) {
       setCurrentTime(0);
+      if (videoRef.current) videoRef.current.currentTime = 0;
     }
     setPlaying((p) => !p);
+  };
+
+  const handleStreamDragOver = (e) => e.preventDefault();
+  const handleStreamDrop = (e) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0];
+    handleVideoFile(file);
   };
 
   const currentMs = currentTime * 1000; // convert to ms for event comparisons
@@ -92,11 +141,27 @@ export default function App() {
             <span className="app__stat-value">{reactionCount}</span>
           </span>
         </div>
+        {/* Video file picker button */}
+        <button
+          className="app__video-btn"
+          onClick={() => videoInputRef.current?.click()}
+          title={videoSrc ? 'Replace video file' : 'Load video file'}
+        >
+          🎬 {videoSrc ? 'Replace video' : 'Add video'}
+        </button>
+        <input
+          ref={videoInputRef}
+          type="file"
+          accept="video/*"
+          style={{ display: 'none' }}
+          onChange={(e) => handleVideoFile(e.target.files?.[0])}
+        />
         <button
           className="app__reset-btn"
           onClick={() => {
             setEvents(null);
             setPlaying(false);
+            setVideoSrc(null);
           }}
         >
           Load new file
@@ -105,19 +170,49 @@ export default function App() {
 
       {/* Main area */}
       <div className="app__main">
-        {/* Stream area */}
         <div className="app__stream">
-          <div className="app__stream-bg">
-            <div className="app__stream-placeholder">
-              <span className="app__stream-icon">📺</span>
-              <p>Video placeholder</p>
-              <p className="app__stream-hint">
-                Drop your video here or integrate a player
-              </p>
-            </div>
+          {/* Stream / video area — accepts video drag-and-drop */}
+          <div
+            className="app__stream-bg"
+            onDragOver={handleStreamDragOver}
+            onDrop={handleStreamDrop}
+          >
+            {videoSrc ? (
+              <video
+                ref={videoRef}
+                className="app__video"
+                src={videoSrc}
+                onTimeUpdate={() => {
+                  if (videoRef.current) {
+                    setCurrentTime(videoRef.current.currentTime);
+                  }
+                }}
+                onEnded={() => setPlaying(false)}
+              />
+            ) : (
+              <div
+                className="app__stream-placeholder app__stream-placeholder--clickable"
+                onClick={() => videoInputRef.current?.click()}
+              >
+                <span className="app__stream-icon">🎬</span>
+                <p>Drop a video file here</p>
+                <p className="app__stream-hint">
+                  or click to browse · MP4, MOV, MKV &amp; more · large files supported
+                </p>
+              </div>
+            )}
+
+            {/* Reaction emoji overlay — currentMs (ms) keeps timing in sync */}
             <ReactionOverlay
               events={events}
-              currentTime={currentTime}
+              currentTime={currentMs}
+              minTime={minTime}
+            />
+
+            {/* Chat overlay — positioned over the right side of the video */}
+            <ChatPanel
+              events={events}
+              currentTime={currentMs}
               minTime={minTime}
             />
           </div>
@@ -132,13 +227,6 @@ export default function App() {
             onSpeedChange={setSpeed}
           />
         </div>
-
-        {/* Chat panel */}
-        <ChatPanel
-          events={events}
-          currentTime={currentMs}
-          minTime={minTime}
-        />
       </div>
     </div>
   );

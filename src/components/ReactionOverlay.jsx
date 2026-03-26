@@ -8,12 +8,12 @@ const REACTION_LIFETIME = 3000; // ms a reaction floats on screen
  * Displays emoji reactions floating up from the bottom of the stream area.
  * A reaction is shown when its timestamp first enters the current playback window.
  */
-export default function ReactionOverlay({ events, currentTime, minTime }) {
+export default function ReactionOverlay({ events, currentMs, minTime }) {
   const [active, setActive] = useState([]);
   const seenRef = useRef(new Set());
 
   useEffect(() => {
-    const now = currentTime + minTime;
+    const now = currentMs + minTime;
     const newOnes = events.filter(
       (e) =>
         e.type === 'reaction' &&
@@ -40,20 +40,20 @@ export default function ReactionOverlay({ events, currentTime, minTime }) {
     }, REACTION_LIFETIME + 100);
 
     return () => clearTimeout(timer);
-  }, [currentTime, events, minTime]);
+  }, [currentMs, events, minTime]);
 
   // Reset seen set when playback rewinds
-  const lastTimeRef = useRef(currentTime);
+  const lastMsRef = useRef(currentMs);
 
   useEffect(() => {
-    const didRewind = currentTime < lastTimeRef.current - 1;
-    lastTimeRef.current = currentTime;
+    const didRewind = currentMs < lastMsRef.current - 1000;
+    lastMsRef.current = currentMs;
     if (didRewind) {
       seenRef.current.clear();
       const t = setTimeout(() => setActive([]), 0);
       return () => clearTimeout(t);
     }
-  }, [currentTime]);
+  }, [currentMs]);
 
   return (
     <div className="reaction-overlay">
@@ -72,6 +72,6 @@ export default function ReactionOverlay({ events, currentTime, minTime }) {
 
 ReactionOverlay.propTypes = {
   events: PropTypes.array.isRequired,
-  currentTime: PropTypes.number.isRequired,
+  currentMs: PropTypes.number.isRequired,
   minTime: PropTypes.number.isRequired,
 };

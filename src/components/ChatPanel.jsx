@@ -6,10 +6,10 @@ import './ChatPanel.css';
  * Twitch-style scrolling chat panel.
  * Shows join events and reaction events in chronological order.
  */
-export default function ChatPanel({ events, currentTime, minTime }) {
+export default function ChatPanel({ events, currentMs, minTime }) {
   const listRef = useRef(null);
 
-  const visible = events.filter((e) => e.timestamp <= currentTime + minTime);
+  const visible = events.filter((e) => e.timestamp <= currentMs + minTime);
 
   useEffect(() => {
     if (listRef.current) {
@@ -49,6 +49,6 @@ export default function ChatPanel({ events, currentTime, minTime }) {
 
 ChatPanel.propTypes = {
   events: PropTypes.array.isRequired,
-  currentTime: PropTypes.number.isRequired,
+  currentMs: PropTypes.number.isRequired,
   minTime: PropTypes.number.isRequired,
 };
