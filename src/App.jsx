@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import FileUpload from './components/FileUpload';
-import ChatPanel from './components/ChatPanel';
-import ReactionOverlay from './components/ReactionOverlay';
+import ChatOverlay from './components/ChatOverlay';
+import OverlayExporter from './components/OverlayExporter';
 import Timeline from './components/Timeline';
 import { parseJsonl, getTimeRange } from './utils/parseJsonl';
 import './App.css';
@@ -17,6 +17,7 @@ export default function App() {
   const [speed, setSpeed] = useState(1);
   const [filename, setFilename] = useState('');
   const [videoSrc, setVideoSrc] = useState(null);    // object URL for the loaded video
+  const [exporting, setExporting] = useState(false); // true while recording overlay WebM
   const intervalRef = useRef(null);
   const videoRef = useRef(null);
   const videoInputRef = useRef(null);
@@ -51,6 +52,34 @@ export default function App() {
     };
   }, [videoSrc]);
 
+  // Download the overlay blob when recording stops
+  const handleExportDone = useCallback((blob) => {
+    setExporting(false);
+    setPlaying(false);
+    const ext = blob.type.includes('mp4') ? 'mp4' : 'webm';
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `chatvisual-overlay.${ext}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, []);
+
+  const handleExportToggle = () => {
+    if (exporting) {
+      setExporting(false);
+      setPlaying(false);
+    } else {
+      // Rewind to start, then record + play
+      setCurrentTime(0);
+      if (videoRef.current) videoRef.current.currentTime = 0;
+      setExporting(true);
+      setPlaying(true);
+    }
+  };
+
   // Playback ticker — only used when no video is loaded (video drives its own
   // timeupdate events instead).
   useEffect(() => {
@@ -62,6 +91,7 @@ export default function App() {
         const next = prev + (TICK_MS / 1000) * speed;
         if (next >= duration) {
           setPlaying(false);
+          setExporting(false);
           return duration;
         }
         return next;
@@ -88,6 +118,12 @@ export default function App() {
       videoRef.current.playbackRate = speed;
     }
   }, [speed]);
+
+  // Stable callback for natural playback end (video ended or ticker reached duration)
+  const handlePlaybackEnd = useCallback(() => {
+    setPlaying(false);
+    setExporting(false);
+  }, []);
 
   const handleSeek = (val) => {
     setCurrentTime(val);
@@ -156,11 +192,24 @@ export default function App() {
           style={{ display: 'none' }}
           onChange={(e) => handleVideoFile(e.target.files?.[0])}
         />
+        {/* Export overlay button */}
+        <button
+          className={`app__export-btn${exporting ? ' app__export-btn--active' : ''}`}
+          onClick={handleExportToggle}
+          title={
+            exporting
+              ? 'Stop recording and download transparent WebM'
+              : 'Export overlay as transparent WebM for compositing in a video editor'
+          }
+        >
+          {exporting ? '⏹ Stop Export' : '⬇ Export Overlay'}
+        </button>
         <button
           className="app__reset-btn"
           onClick={() => {
             setEvents(null);
             setPlaying(false);
+            setExporting(false);
             setVideoSrc(null);
           }}
         >
@@ -187,7 +236,7 @@ export default function App() {
                     setCurrentTime(videoRef.current.currentTime);
                   }
                 }}
-                onEnded={() => setPlaying(false)}
+                onEnded={handlePlaybackEnd}
               />
             ) : (
               <div
@@ -202,18 +251,22 @@ export default function App() {
               </div>
             )}
 
-            {/* Reaction emoji overlay — currentMs (ms) keeps timing in sync */}
-            <ReactionOverlay
+            {/* Transparent overlay: floating reactions + chat messages.
+                Hidden during export so the canvas preview takes over. */}
+            {!exporting && (
+              <ChatOverlay
+                events={events}
+                currentMs={currentMs}
+                minTime={minTime}
+              />
+            )}
+            {/* Canvas recorder — transparent WebM export */}
+            <OverlayExporter
               events={events}
-              currentTime={currentMs}
+              currentMs={currentMs}
               minTime={minTime}
-            />
-
-            {/* Chat overlay — positioned over the right side of the video */}
-            <ChatPanel
-              events={events}
-              currentTime={currentMs}
-              minTime={minTime}
+              exporting={exporting}
+              onDone={handleExportDone}
             />
           </div>
 

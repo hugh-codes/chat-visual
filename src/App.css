@@ -175,3 +175,32 @@
   color: #efeff1;
 }
 
+/* Export overlay button */
+.app__export-btn {
+  background: transparent;
+  border: 1px solid #3d3d40;
+  color: #adadb8;
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+
+.app__export-btn:hover {
+  border-color: #9147ff;
+  color: #efeff1;
+}
+
+.app__export-btn--active {
+  border-color: #ff4040;
+  color: #ff4040;
+  animation: export-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes export-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.55; }
+}
+
