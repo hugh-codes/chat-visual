@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
+import { REACTION_LIFETIME } from '../utils/overlayConstants';
 import './ChatOverlay.css';
-
-const REACTION_LIFETIME = 3000; // ms a floating emoji stays on screen
 
 /**
  * Single transparent overlay that combines:
