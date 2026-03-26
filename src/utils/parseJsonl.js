@@ -25,13 +25,22 @@ export function parseJsonl(text) {
         const body = JSON.parse(payload.body || '{}');
 
         if (body.type === 2) {
-          const ts = body.timestamp ?? body.ntpForLiveFrame ?? null;
+          const rawTs = body.timestamp ?? body.ntpForLiveFrame ?? null;
 
           // Skip reactions with no usable timestamp — storing null would make
           // the JS comparison `null <= now` evaluate to true (null coerces to 0)
           // causing every un-timed reaction to appear the moment the overlay
           // mounts.
-          if (ts === null) continue;
+          if (rawTs === null) continue;
+
+          // Normalize to milliseconds. Twitter Spaces exports sometimes store
+          // timestamps as Unix-epoch seconds (~10 digits, e.g. 1_699_000_000)
+          // rather than milliseconds (~13 digits). Without this conversion the
+          // overlay treats 1 ms of playback as 1 second of stream time, so all
+          // reactions for the entire 2-hour archive flood the screen in the
+          // first few seconds. Threshold 1e11 safely distinguishes the two
+          // units for any date in the plausible range of live-stream data.
+          const ts = rawTs < 1e11 ? rawTs * 1000 : rawTs;
 
           if (ts < minTimestamp) minTimestamp = ts;
 
