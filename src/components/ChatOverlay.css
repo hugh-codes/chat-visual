@@ -1,0 +1,76 @@
+/* ── Wrapper ──────────────────────────────────────────────────────────────── */
+.chat-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* ── Floating emoji reactions ─────────────────────────────────────────────── */
+.chat-overlay__emoji {
+  position: absolute;
+  bottom: 0;
+  font-size: 32px;
+  line-height: 1;
+  animation: chat-float-up 3s ease-out forwards;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.7));
+}
+
+@keyframes chat-float-up {
+  0%   { transform: translateY(0) scale(0.6); opacity: 0; }
+  15%  { transform: translateY(-20px) scale(1.1); opacity: 1; }
+  80%  { opacity: 1; }
+  100% { transform: translateY(-200px) scale(0.9); opacity: 0; }
+}
+
+/* ── Transparent message list ─────────────────────────────────────────────── */
+.chat-overlay__messages {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.chat-overlay__msg {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.45;
+  color: #ffffff;
+  word-break: break-word;
+  animation: msg-in 0.25s ease-out;
+  text-shadow:
+    0 1px 4px rgba(0, 0, 0, 1),
+    0 0 12px rgba(0, 0, 0, 0.85);
+}
+
+.chat-overlay__msg--join {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.55);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+}
+
+.chat-overlay__name {
+  font-weight: 700;
+  color: #b98bff;
+  text-shadow:
+    0 1px 4px rgba(0, 0, 0, 1),
+    0 0 12px rgba(0, 0, 0, 0.85);
+}
+
+.chat-overlay__colon {
+  color: #ffffff;
+  margin: 0 4px 0 1px;
+}
+
+.chat-overlay__msg-emoji {
+  font-size: 17px;
+  line-height: 1;
+}
+
+@keyframes msg-in {
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}

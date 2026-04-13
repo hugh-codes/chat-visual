@@ -1,0 +1,278 @@
+/* App-level layout */
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #0e0e10;
+  font-family: 'Inter', system-ui, sans-serif;
+  color: #efeff1;
+  overflow: hidden;
+}
+
+/* Top bar */
+.app__topbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 16px;
+  height: 48px;
+  background: #18181b;
+  border-bottom: 1px solid #2a2a2e;
+  flex-shrink: 0;
+}
+
+.app__logo {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #efeff1;
+}
+
+.app__logo-purple {
+  color: #9147ff;
+}
+
+.app__filename {
+  font-size: 12px;
+  color: #adadb8;
+  background: #26262c;
+  padding: 2px 10px;
+  border-radius: 12px;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app__stats {
+  display: flex;
+  gap: 20px;
+  margin-left: auto;
+}
+
+.app__stat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.app__stat-label {
+  font-size: 10px;
+  color: #5c5c62;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.app__stat-value {
+  font-size: 14px;
+  font-weight: 700;
+  color: #efeff1;
+}
+
+.app__reset-btn {
+  background: transparent;
+  border: 1px solid #3d3d40;
+  color: #adadb8;
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+
+.app__reset-btn:hover {
+  border-color: #9147ff;
+  color: #efeff1;
+}
+
+/* Main split layout */
+.app__main {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* Stream area */
+.app__stream {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.app__stream-bg {
+  flex: 1;
+  position: relative;
+  background: #0a0a0c;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.app__stream-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: #3d3d40;
+  pointer-events: none;
+  user-select: none;
+}
+
+.app__stream-icon {
+  font-size: 64px;
+  opacity: 0.4;
+}
+
+.app__stream-placeholder p {
+  margin: 0;
+  font-size: 14px;
+  color: #3d3d40;
+}
+
+.app__stream-hint {
+  font-size: 12px !important;
+  color: #2a2a2e !important;
+}
+
+/* Video element — fills the stream area */
+.app__video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  background: #000;
+}
+
+/* Clickable placeholder variant */
+.app__stream-placeholder--clickable {
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.app__stream-placeholder--clickable:hover .app__stream-icon,
+.app__stream-placeholder--clickable:hover p {
+  color: #9147ff;
+}
+
+/* "Add / Replace video" button in topbar */
+.app__video-btn {
+  background: transparent;
+  border: 1px solid #3d3d40;
+  color: #adadb8;
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+
+.app__video-btn:hover {
+  border-color: #9147ff;
+  color: #efeff1;
+}
+
+/* Export overlay button */
+.app__export-btn {
+  background: transparent;
+  border: 1px solid #3d3d40;
+  color: #adadb8;
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+
+.app__export-btn:hover {
+  border-color: #9147ff;
+  color: #efeff1;
+}
+
+.app__export-btn--active {
+  border-color: #ff4040;
+  color: #ff4040;
+  animation: export-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes export-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.55; }
+}
+
+/* Export progress overlay — centred over the stream area */
+.app__export-progress {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: rgba(0, 0, 0, 0.72);
+  pointer-events: none;
+  z-index: 10;
+}
+
+.app__export-progress-bar {
+  width: 320px;
+  height: 8px;
+  background: #2a2a2e;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.app__export-progress-fill {
+  height: 100%;
+  background: #9147ff;
+  border-radius: 4px;
+  transition: width 0.25s ease;
+}
+
+.app__export-progress-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #efeff1;
+}
+
+.app__export-progress-hint {
+  font-size: 11px;
+  color: #5c5c62;
+  text-align: center;
+  max-width: 320px;
+}
+
+/* Export error banner */
+.app__export-error {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #2a1010;
+  border: 1px solid #ff4040;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-size: 13px;
+  color: #ff8080;
+  max-width: 520px;
+  z-index: 10;
+}
+
+.app__export-error-dismiss {
+  background: transparent;
+  border: none;
+  color: #ff4040;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0;
+  flex-shrink: 0;
+}
+

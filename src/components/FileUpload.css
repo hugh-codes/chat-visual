@@ -1,0 +1,95 @@
+.file-upload {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 32px;
+  background: #0e0e10;
+  gap: 24px;
+}
+
+.file-upload__hero {
+  text-align: center;
+}
+
+.file-upload__title {
+  font-size: 48px;
+  font-weight: 800;
+  color: #efeff1;
+  letter-spacing: -0.02em;
+  margin: 0 0 8px;
+}
+
+.file-upload__purple {
+  color: #9147ff;
+}
+
+.file-upload__subtitle {
+  color: #adadb8;
+  font-size: 16px;
+  margin: 0;
+}
+
+.file-upload__dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 480px;
+  min-height: 180px;
+  border: 2px dashed #3d3d40;
+  border-radius: 12px;
+  background: #18181b;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  padding: 32px;
+}
+
+.file-upload__dropzone:hover {
+  border-color: #9147ff;
+  background: #1f1f23;
+}
+
+.file-upload__input {
+  display: none;
+}
+
+.file-upload__icon {
+  font-size: 40px;
+}
+
+.file-upload__label {
+  color: #adadb8;
+  font-size: 14px;
+  text-align: center;
+}
+
+.file-upload__link {
+  color: #9147ff;
+  font-weight: 600;
+}
+
+.file-upload__or {
+  color: #5c5c62;
+  font-size: 13px;
+  margin: 0;
+}
+
+.file-upload__example-btn {
+  background: #9147ff;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 28px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.file-upload__example-btn:hover {
+  background: #772ce8;
+}
